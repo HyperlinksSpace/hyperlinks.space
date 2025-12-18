@@ -37,6 +37,8 @@ export default async function Home() {
           className="hyperlinksCell"
           href={href}
           aria-label={`Open link ${n}`}
+          target={href === "#" ? undefined : "_blank"}
+          rel={href === "#" ? undefined : "noopener noreferrer"}
         >
           <div className="hyperlinksImagePad">
             <Image
