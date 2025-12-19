@@ -12,7 +12,8 @@ interface WaveSVGProps {
 const applyWaveToPath = (
   pathData: string,
   time: number,
-  waveIntensity: number = 5
+  waveIntensity: number = 1,
+  pathIndex: number = 0
 ): string => {
   // Extract all numbers from the path
   const numberRegex = /(-?\d+\.?\d*)/g;
@@ -37,15 +38,30 @@ const applyWaveToPath = (
     // Add text before this number
     result += pathData.substring(lastIndex, num.index);
 
-    // Apply wave distortion
-    // X coordinates (even indices) get horizontal wave
-    // Y coordinates (odd indices) get vertical wave
+    // Apply wave distortion with multiple frequencies for more complex waves
     const isY = index % 2 === 1;
-    const wave = isY
-      ? Math.sin(time * 2 + num.value * 0.01) * waveIntensity
-      : Math.cos(time * 1.5 + num.value * 0.01) * waveIntensity * 0.5;
+    
+    // Multiple wave frequencies for organic, balanced effect
+    const wave1 = isY
+      ? Math.sin(time * 2.5 + num.value * 0.012 + pathIndex) * waveIntensity
+      : Math.cos(time * 2.0 + num.value * 0.012 + pathIndex) * waveIntensity * 0.6;
+    
+    const wave2 = isY
+      ? Math.sin(time * 1.5 + num.value * 0.018 + pathIndex * 0.5) * waveIntensity * 0.5
+      : Math.cos(time * 1.2 + num.value * 0.018 + pathIndex * 0.5) * waveIntensity * 0.35;
+    
+    const wave3 = isY
+      ? Math.sin(time * 3.5 + num.value * 0.006) * waveIntensity * 0.3
+      : Math.cos(time * 3.0 + num.value * 0.006) * waveIntensity * 0.25;
 
-    const newValue = num.value + wave;
+    // Combine waves for smooth, balanced motion
+    const combinedWave = wave1 + wave2 + wave3;
+    
+    // Subtle position-based variation for natural feel
+    const positionFactor = 1 + Math.abs(num.value) * 0.0003;
+    const finalWave = combinedWave * positionFactor;
+
+    const newValue = num.value + finalWave;
     result += newValue.toFixed(2);
 
     lastIndex = num.index + num.length;
@@ -114,9 +130,21 @@ export default function WaveSVG({
         const originalPath = originalPathsRef.current.get(path);
         if (!originalPath) return;
 
-        // Apply wave distortion with varying intensity per path
-        const waveIntensity = 3 + Math.sin(elapsed * 0.5 + index) * 2;
-        const distortedPath = applyWaveToPath(originalPath, elapsed, waveIntensity);
+        // Apply wave distortion with balanced, varying intensity per path
+        // Moderate base intensity with smooth variation
+        const baseIntensity = 6;
+        const variation = Math.sin(elapsed * 0.6 + index * 0.5) * 3;
+        const waveIntensity = baseIntensity + variation;
+        
+        // Add per-path phase offset for organic movement
+        const phaseOffset = index * 0.3;
+        
+        const distortedPath = applyWaveToPath(
+          originalPath, 
+          elapsed + phaseOffset, 
+          waveIntensity,
+          index
+        );
         path.setAttribute("d", distortedPath);
       });
 
