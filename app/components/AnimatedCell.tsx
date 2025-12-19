@@ -1,7 +1,7 @@
 "use client";
 
-import { useAnimation } from "./AnimatedGrid";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import WaveSVG from "./WaveSVG";
 
 interface AnimatedCellProps {
   n: number;
@@ -10,30 +10,31 @@ interface AnimatedCellProps {
 }
 
 export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps) {
-  const { imageScales, transitionDurations } = useAnimation();
-  const svgRef = useRef<HTMLDivElement>(null);
-  const scaleX = imageScales[n - 1] ?? 1;
-  // Use different scale for Y to create flatten/expand effect
-  const scaleY = imageScales[(n - 1 + 2) % 4] ?? 1;
-  const transitionDuration = transitionDurations[n - 1] ?? '0.4s';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 400, height: 400 });
 
+  // Update dimensions based on container size
   useEffect(() => {
-    if (svgRef.current) {
-      const svgElement = svgRef.current.querySelector('svg') as SVGSVGElement;
-      if (svgElement) {
-        // Apply CSS transform directly to SVG to animate paths
-        // Constrain scale to prevent overflow
-        const constrainedScaleX = Math.min(scaleX, 1.5);
-        const constrainedScaleY = Math.min(scaleY, 1.5);
-        svgElement.style.transform = `scale(${constrainedScaleX}, ${constrainedScaleY})`;
-        svgElement.style.transformOrigin = 'center';
-        svgElement.style.transition = `transform ${transitionDuration} cubic-bezier(0.34, 1.56, 0.64, 1)`;
-        svgElement.style.maxWidth = '100%';
-        svgElement.style.maxHeight = '100%';
-        svgElement.style.overflow = 'visible';
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDimensions({
+          width: rect.width,
+          height: rect.height,
+        });
       }
+    };
+
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
     }
-  }, [scaleX, scaleY, transitionDuration]);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
     <a
@@ -45,6 +46,7 @@ export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps)
     >
       <div className="hyperlinksImagePad">
         <div
+          ref={containerRef}
           className="hyperlinksImageContainer"
           style={{
             width: '100%',
@@ -55,24 +57,13 @@ export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps)
             justifyContent: 'center',
           }}
         >
-          <div
-            ref={svgRef}
-            className={`hyperlinksImage hyperlinksPos${n}`}
-            style={{
-              width: '100%',
-              height: '100%',
-              maxWidth: '100%',
-              maxHeight: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-            }}
-            dangerouslySetInnerHTML={{ __html: svgContent }}
+          <WaveSVG
+            svgContent={svgContent}
+            width={dimensions.width}
+            height={dimensions.height}
           />
         </div>
       </div>
     </a>
   );
 }
-
