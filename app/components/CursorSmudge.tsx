@@ -2,6 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
+
+interface Ripple {
+  x: number;
+  y: number;
+  startTime: number;
+  radius: number;
+  intensity: number;
+}
+
 interface TrailPoint {
   x: number;
   y: number;
@@ -11,12 +20,20 @@ interface TrailPoint {
   vy: number;
 }
 
-interface Ripple {
+interface Particle {
   x: number;
   y: number;
-  startTime: number;
-  radius: number;
-  intensity: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  trajectory: 'straight' | 'orbital';
+  centerX?: number;
+  centerY?: number;
+  angle?: number;
+  radius?: number;
+  angularVelocity?: number;
 }
 
 export default function CursorSmudge() {
@@ -31,9 +48,11 @@ export default function CursorSmudge() {
   const [blurRegions, setBlurRegions] = useState<Array<{ x: number; y: number; size: number; blur: number; vx: number; vy: number }>>([]);
   const bodyRef = useRef<HTMLBodyElement | null>(null);
   const ripplesRef = useRef<Ripple[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
   const isMobileRef = useRef(false);
   const randomMovementRef = useRef<{ x: number; y: number; targetX: number; targetY: number; lastMove: number } | null>(null);
   const blurRegionsRef = useRef<Array<{ x: number; y: number; size: number; blur: number; vx: number; vy: number }>>([]);
+  const lastParticleSpawnRef = useRef(0);
 
   useEffect(() => {
     // Detect mobile device
@@ -82,7 +101,7 @@ export default function CursorSmudge() {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    // Track mouse position with velocity and create continuous ripples
+    // Track mouse position with velocity
     let lastRippleTime = 0;
     const rippleInterval = 150; // Create new ripple every 150ms
     
@@ -363,15 +382,15 @@ export default function CursorSmudge() {
         const x = trail.x + waveX;
         const y = trail.y + waveY;
         
-        // Draw smudge effect with prism colors
+        // Draw smudge effect with colors (not blue)
         const radius = 120 * trail.intensity;
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
         
-        // Ocean-inspired color mixing - blues and teals
-        const baseHue = 200 + Math.sin(timeRef.current * 0.5 + index * 0.3) * 30; // 170-230 (blues/teals)
+        // Unisex color mixing - greens, oranges, yellows
+        const baseHue = 60 + Math.sin(timeRef.current * 0.5 + index * 0.3) * 80; // 0-140 (yellows, greens, oranges)
         const hue1 = baseHue;
-        const hue2 = baseHue + 20; // Slightly different blue
-        const hue3 = baseHue + 40; // Teal variant
+        const hue2 = baseHue + 30;
+        const hue3 = baseHue + 60;
         
         gradient.addColorStop(0, `hsla(${hue1}, 70%, 60%, ${0.4 * trail.intensity})`);
         gradient.addColorStop(0.33, `hsla(${hue2}, 70%, 60%, ${0.3 * trail.intensity})`);
@@ -383,6 +402,248 @@ export default function CursorSmudge() {
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
 
+        return true;
+      });
+
+      // Spawn hyper-fast particles randomly (sometimes)
+      const particleSpawnChance = 0.05; // 5% chance per frame - more frequent
+      const bigParticleSpawnChance = 0.008; // 0.8% chance per frame for big particles
+      const minTimeBetweenSpawns = 100; // Minimum 100ms between spawns
+      const minTimeBetweenBigSpawns = 500; // Minimum 500ms between big particle spawns
+      
+      // Spawn small particles
+      if (Math.random() < particleSpawnChance && now - lastParticleSpawnRef.current > minTimeBetweenSpawns) {
+        const numParticles = 1 + Math.floor(Math.random() * 4); // 1-4 particles at a time
+        
+        for (let i = 0; i < numParticles; i++) {
+          const trajectory = Math.random() < 0.5 ? 'straight' : 'orbital';
+          
+          if (trajectory === 'straight') {
+            // Straight trajectory - spawn from random edge
+            const edge = Math.floor(Math.random() * 4);
+            let spawnX, spawnY, vx, vy;
+            
+            switch (edge) {
+              case 0: // Top
+              spawnX = Math.random() * canvas.width;
+              spawnY = 0;
+              vx = (Math.random() - 0.5) * 2;
+              vy = 15 + Math.random() * 25; // Much faster downward
+              break;
+            case 1: // Right
+              spawnX = canvas.width;
+              spawnY = Math.random() * canvas.height;
+              vx = -(15 + Math.random() * 25); // Much faster leftward
+              vy = (Math.random() - 0.5) * 2;
+              break;
+            case 2: // Bottom
+              spawnX = Math.random() * canvas.width;
+              spawnY = canvas.height;
+              vx = (Math.random() - 0.5) * 2;
+              vy = -(15 + Math.random() * 25); // Much faster upward
+              break;
+            case 3: // Left
+              spawnX = 0;
+              spawnY = Math.random() * canvas.height;
+              vx = 15 + Math.random() * 25; // Much faster rightward
+              vy = (Math.random() - 0.5) * 2;
+              break;
+              default:
+              spawnX = Math.random() * canvas.width;
+              spawnY = Math.random() * canvas.height;
+              const angle = Math.random() * Math.PI * 2;
+              const speed = 15 + Math.random() * 25; // Much faster
+              vx = Math.cos(angle) * speed;
+              vy = Math.sin(angle) * speed;
+            }
+            
+            particlesRef.current.push({
+              x: spawnX,
+              y: spawnY,
+              vx,
+              vy,
+              life: 0,
+              maxLife: 1000 + Math.random() * 2000, // 1-3 seconds
+              size: 1, // Small particle
+              trajectory: 'straight',
+            });
+          } else {
+            // Orbital trajectory
+            const centerX = Math.random() * canvas.width;
+            const centerY = Math.random() * canvas.height;
+            const radius = 50 + Math.random() * 200;
+            const angle = Math.random() * Math.PI * 2;
+            const angularVelocity = (0.05 + Math.random() * 0.15) * (Math.random() < 0.5 ? 1 : -1); // Fast rotation
+            
+            particlesRef.current.push({
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius,
+              vx: 0,
+              vy: 0,
+              life: 0,
+              maxLife: 2000 + Math.random() * 3000, // 2-5 seconds
+              size: 1, // Small particle
+              trajectory: 'orbital',
+              centerX,
+              centerY,
+              angle,
+              radius,
+              angularVelocity,
+            });
+          }
+        }
+        
+        lastParticleSpawnRef.current = now;
+      }
+      
+      // Spawn big particles (less frequently)
+      if (Math.random() < bigParticleSpawnChance && now - lastParticleSpawnRef.current > minTimeBetweenBigSpawns) {
+        const numBigParticles = 1 + Math.floor(Math.random() * 2); // 1-2 big particles at a time
+        
+        for (let i = 0; i < numBigParticles; i++) {
+          const trajectory = Math.random() < 0.6 ? 'straight' : 'orbital';
+          const particleSize = 8 + Math.random() * 12; // 8-20px big particles
+          
+          if (trajectory === 'straight') {
+            // Straight trajectory - spawn from random edge
+            const edge = Math.floor(Math.random() * 4);
+            let spawnX, spawnY, vx, vy;
+            
+            switch (edge) {
+              case 0: // Top
+                spawnX = Math.random() * canvas.width;
+                spawnY = 0;
+                vx = (Math.random() - 0.5) * 3;
+                vy = 8 + Math.random() * 12; // Slower than small particles
+                break;
+              case 1: // Right
+                spawnX = canvas.width;
+                spawnY = Math.random() * canvas.height;
+                vx = -(8 + Math.random() * 12);
+                vy = (Math.random() - 0.5) * 3;
+                break;
+              case 2: // Bottom
+                spawnX = Math.random() * canvas.width;
+                spawnY = canvas.height;
+                vx = (Math.random() - 0.5) * 3;
+                vy = -(8 + Math.random() * 12);
+                break;
+              case 3: // Left
+                spawnX = 0;
+                spawnY = Math.random() * canvas.height;
+                vx = 8 + Math.random() * 12;
+                vy = (Math.random() - 0.5) * 3;
+                break;
+              default:
+                spawnX = Math.random() * canvas.width;
+                spawnY = Math.random() * canvas.height;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 8 + Math.random() * 12;
+                vx = Math.cos(angle) * speed;
+                vy = Math.sin(angle) * speed;
+            }
+            
+            particlesRef.current.push({
+              x: spawnX,
+              y: spawnY,
+              vx,
+              vy,
+              life: 0,
+              maxLife: 3000 + Math.random() * 4000, // 3-7 seconds
+              size: particleSize,
+              trajectory: 'straight',
+            });
+          } else {
+            // Orbital trajectory for big particles
+            const centerX = Math.random() * canvas.width;
+            const centerY = Math.random() * canvas.height;
+            const radius = 100 + Math.random() * 300; // Larger orbits
+            const angle = Math.random() * Math.PI * 2;
+            const angularVelocity = (0.02 + Math.random() * 0.08) * (Math.random() < 0.5 ? 1 : -1); // Slower rotation
+            
+            particlesRef.current.push({
+              x: centerX + Math.cos(angle) * radius,
+              y: centerY + Math.sin(angle) * radius,
+              vx: 0,
+              vy: 0,
+              life: 0,
+              maxLife: 4000 + Math.random() * 5000, // 4-9 seconds
+              size: particleSize,
+              trajectory: 'orbital',
+              centerX,
+              centerY,
+              angle,
+              radius,
+              angularVelocity,
+            });
+          }
+        }
+        
+        lastParticleSpawnRef.current = now;
+      }
+      
+      // Update and draw particles
+      particlesRef.current = particlesRef.current.filter((particle) => {
+        // Update position based on trajectory
+        if (particle.trajectory === 'straight') {
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+        } else if (particle.trajectory === 'orbital') {
+          // Orbital movement
+          particle.angle! += particle.angularVelocity!;
+          particle.x = particle.centerX! + Math.cos(particle.angle!) * particle.radius!;
+          particle.y = particle.centerY! + Math.sin(particle.angle!) * particle.radius!;
+        }
+        
+        particle.life += 16; // Approximate frame time
+        
+        // Remove if off screen or expired
+        if (particle.life > particle.maxLife ||
+            particle.x < -100 || particle.x > canvas.width + 100 ||
+            particle.y < -100 || particle.y > canvas.height + 100) {
+          return false;
+        }
+        
+        // Draw particle - unisex colors
+        const particleHue = 30 + Math.random() * 120; // Orange/yellow/green range (30-150)
+        const alpha = 1 - (particle.life / particle.maxLife) * 0.3; // Fade slightly
+        const size = particle.size || 1; // Ensure size is always defined and valid
+        
+        // Validate particle position and size
+        if (!isFinite(particle.x) || !isFinite(particle.y) || !isFinite(size) || size <= 0) {
+          return false; // Skip invalid particles
+        }
+        
+        if (size === 1) {
+          // Small 1px particle
+          ctx.fillStyle = `hsla(${particleHue}, 80%, 70%, ${alpha})`;
+          ctx.fillRect(Math.floor(particle.x), Math.floor(particle.y), 1, 1);
+          
+          // Also draw a slightly larger point for visibility
+          ctx.fillStyle = `hsla(${particleHue}, 80%, 70%, ${alpha * 0.5})`;
+          ctx.fillRect(Math.floor(particle.x) - 1, Math.floor(particle.y) - 1, 3, 3);
+        } else {
+          // Big particle - draw as circle with gradient
+          const gradient = ctx.createRadialGradient(
+            particle.x, particle.y, 0,
+            particle.x, particle.y, size
+          );
+          gradient.addColorStop(0, `hsla(${particleHue}, 80%, 70%, ${alpha})`);
+          gradient.addColorStop(0.5, `hsla(${particleHue + 20}, 80%, 65%, ${alpha * 0.7})`);
+          gradient.addColorStop(1, `hsla(${particleHue + 40}, 80%, 60%, ${alpha * 0.3})`);
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Add glow effect for big particles
+          ctx.shadowBlur = size * 1.5;
+          ctx.shadowColor = `hsla(${particleHue}, 80%, 70%, ${alpha * 0.5})`;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        
         return true;
       });
 
@@ -405,8 +666,8 @@ export default function CursorSmudge() {
               const ringProgress = ring / numRings;
               const ringOpacity = (1 - ringProgress) * ripple.intensity * 0.6;
               
-              // Alternate between blue and cyan for better visibility
-              const hue = 200 + (ring % 2) * 20; // 200 (blue) or 220 (cyan)
+              // Alternate between green and orange for better visibility
+              const hue = 60 + (ring % 2) * 60; // 60 (yellow) or 120 (green)
               
               ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${ringOpacity})`;
               ctx.lineWidth = 2;
@@ -439,8 +700,8 @@ export default function CursorSmudge() {
           cursorRadius
         );
         
-        // Ocean-inspired colors - blues, teals, and cyan
-        const baseHue = 200 + Math.sin(timeRef.current * 0.4) * 40; // 160-240 (blues/teals/cyan)
+        // Unisex colors - greens, oranges, yellows
+        const baseHue = 60 + Math.sin(timeRef.current * 0.4) * 80; // 0-140 (yellows, greens, oranges)
         cursorGradient.addColorStop(0, `hsla(${baseHue}, 80%, 65%, 0.5)`);
         cursorGradient.addColorStop(0.2, `hsla(${baseHue + 15}, 80%, 65%, 0.4)`);
         cursorGradient.addColorStop(0.4, `hsla(${baseHue + 30}, 80%, 65%, 0.35)`);
@@ -534,12 +795,12 @@ export default function CursorSmudge() {
                   marginLeft: `-${ringRadius}px`,
                   marginTop: `-${ringRadius}px`,
                   borderRadius: "50%",
-                  border: `2px solid hsla(${200 + Math.sin(currentTime * 0.3 + i) * 40 + i * 10}, 70%, 60%, ${ringOpacity})`,
+                  border: `2px solid hsla(${60 + Math.sin(currentTime * 0.3 + i) * 80 + i * 10}, 70%, 60%, ${ringOpacity})`,
                   pointerEvents: "none",
                   zIndex: 10001,
                   transform: `scale(${ringScale})`,
                   transition: "transform 0.1s ease-out, opacity 0.1s ease-out",
-                  boxShadow: `0 0 ${ringRadius * 0.5}px hsla(${200 + Math.sin(currentTime * 0.3 + i) * 40 + i * 10}, 70%, 60%, ${ringOpacity * 0.5})`,
+                  boxShadow: `0 0 ${ringRadius * 0.5}px hsla(${60 + Math.sin(currentTime * 0.3 + i) * 80 + i * 10}, 70%, 60%, ${ringOpacity * 0.5})`,
                 }}
               />
             );
@@ -608,10 +869,10 @@ export default function CursorSmudge() {
           pointerEvents: "none",
           zIndex: 9997,
           background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, 
-            rgba(50, 150, 255, 0.1) 0%,
-            rgba(100, 200, 255, 0.08) 25%,
-            rgba(150, 220, 255, 0.06) 50%,
-            rgba(200, 240, 255, 0.04) 75%,
+            rgba(255, 200, 50, 0.1) 0%,
+            rgba(255, 180, 100, 0.08) 25%,
+            rgba(200, 255, 150, 0.06) 50%,
+            rgba(150, 255, 200, 0.04) 75%,
             transparent 100%)`,
           mixBlendMode: "overlay",
         }}
