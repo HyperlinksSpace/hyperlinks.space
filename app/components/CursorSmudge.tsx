@@ -200,8 +200,7 @@ export default function CursorSmudge() {
             rgba(150, 255, 0, 0.06) 50%,
             rgba(255, 150, 0, 0.04) 75%,
             transparent 100%)`,
-          backdropFilter: `blur(${mousePos.x > 0 ? 2 : 0}px)`,
-          transition: "backdrop-filter 0.3s ease-out",
+          transition: "opacity 0.3s ease-out",
           mixBlendMode: "overlay",
         }}
       />
