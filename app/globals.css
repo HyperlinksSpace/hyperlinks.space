@@ -4,6 +4,10 @@
 html,
 body {
   height: 100%;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 :root {
@@ -27,19 +31,40 @@ body {
 
 body {
   margin: 0;
+  padding: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
 }
 
 .hyperlinksGrid {
   width: 100vw;
   height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  padding: 20px; /* global padding around content area */
+  padding: 0;
+  margin: 0;
+  gap: 0;
   box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  transition: grid-template-columns 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              grid-template-rows 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hyperlinksGrid > div {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 .hyperlinksCell {
@@ -47,18 +72,47 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  max-width: 100%;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.hyperlinksImageContainer {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  position: relative;
+  display: block;
+  overflow: hidden;
 }
 
 .hyperlinksImagePad {
   position: relative;
   width: 100%;
   height: 100%;
-  padding: 10px; /* padding around each image */
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .hyperlinksImage {
   object-fit: contain;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.hyperlinksImage svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 /* Anchor each SVG toward the grid center (given current order 1..4 => TL, TR, BL, BR) */

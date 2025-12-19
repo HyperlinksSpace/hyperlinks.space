@@ -1,6 +1,7 @@
-import Image from "next/image";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import AnimatedGrid from "./components/AnimatedGrid";
+import AnimatedCell from "./components/AnimatedCell";
 
 function parseLinksFile(fileContents: string): string[] {
   // Expected format (one per line): `1. https://example.com/`
@@ -22,36 +23,34 @@ export default async function Home() {
   const linksTxt = await readFile(linksPath, "utf8");
   const links = parseLinksFile(linksTxt);
 
-  // We expect 4 links (1..4) to match `/public/hyperlinks/{n}.svg`.
-  const cells = [1, 2, 3, 4].map((n) => ({
-    n,
-    href: links[n - 1] ?? "#",
-    src: `/hyperlinks/${n}.svg`,
-  }));
+  // Read SVG files and parse them
+  const cells = await Promise.all(
+    [1, 2, 3, 4].map(async (n) => {
+      const svgPath = path.join(
+        process.cwd(),
+        "public",
+        "hyperlinks",
+        `${n}.svg`,
+      );
+      const svgContent = await readFile(svgPath, "utf8");
+      return {
+        n,
+        href: links[n - 1] ?? "#",
+        svgContent,
+      };
+    })
+  );
 
   return (
-    <main className="hyperlinksGrid">
-      {cells.map(({ n, href, src }) => (
-        <a
+    <AnimatedGrid>
+      {cells.map(({ n, href, svgContent }) => (
+        <AnimatedCell
           key={n}
-          className="hyperlinksCell"
+          n={n}
           href={href}
-          aria-label={`Open link ${n}`}
-          target={href === "#" ? undefined : "_blank"}
-          rel={href === "#" ? undefined : "noopener noreferrer"}
-        >
-          <div className="hyperlinksImagePad">
-            <Image
-              src={src}
-              alt=""
-              fill
-              sizes="50vw"
-              priority={n <= 2}
-              className={`hyperlinksImage hyperlinksPos${n}`}
-            />
-          </div>
-        </a>
+          svgContent={svgContent}
+        />
       ))}
-    </main>
+    </AnimatedGrid>
   );
 }
