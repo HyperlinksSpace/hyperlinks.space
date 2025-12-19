@@ -11,7 +11,9 @@ interface AnimatedCellProps {
 
 export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgWrapperRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 400, height: 400 });
+  const [aspectRatio, setAspectRatio] = useState({ scaleX: 1, scaleY: 1 });
 
   // Update dimensions based on container size
   useEffect(() => {
@@ -36,6 +38,31 @@ export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps)
     };
   }, []);
 
+  // Dynamically change SVG aspect ratio to fill maximum space (±22%)
+  useEffect(() => {
+    const updateAspectRatio = () => {
+      // Random aspect ratio changes within ±22% range
+      const scaleX = 0.78 + Math.random() * 0.44; // 0.78 to 1.22 (±22%)
+      const scaleY = 0.78 + Math.random() * 0.44; // 0.78 to 1.22 (±22%)
+      
+      setAspectRatio({ scaleX, scaleY });
+    };
+
+    // Initial update
+    updateAspectRatio();
+
+    // Update every 1-3 seconds for dynamic competition
+    const scheduleNext = () => {
+      const delay = Math.random() * 2000 + 1000; // 1-3 seconds
+      setTimeout(() => {
+        updateAspectRatio();
+        scheduleNext();
+      }, delay);
+    };
+
+    scheduleNext();
+  }, []);
+
   return (
     <a
       className="hyperlinksCell"
@@ -55,13 +82,28 @@ export default function AnimatedCell({ n, href, svgContent }: AnimatedCellProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
-          <WaveSVG
-            svgContent={svgContent}
-            width={dimensions.width}
-            height={dimensions.height}
-          />
+          <div
+            ref={svgWrapperRef}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: `scale(${aspectRatio.scaleX}, ${aspectRatio.scaleY})`,
+              transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+              transformOrigin: 'center center',
+            }}
+          >
+            <WaveSVG
+              svgContent={svgContent}
+              width={dimensions.width}
+              height={dimensions.height}
+            />
+          </div>
         </div>
       </div>
     </a>
