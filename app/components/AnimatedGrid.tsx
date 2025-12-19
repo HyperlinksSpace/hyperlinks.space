@@ -19,6 +19,10 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
   const [imageScales, setImageScales] = useState<number[]>([1, 1, 1, 1]);
   const [transitionDurations, setTransitionDurations] = useState<string[]>(['0.4s', '0.4s', '0.4s', '0.4s']);
   const [cellOrder, setCellOrder] = useState<number[]>([0, 1, 2, 3]);
+  // Store animation durations for each cell (generated once)
+  const [animationDurations] = useState<string[]>(() => 
+    [0, 1, 2, 3].map(() => `${2 + Math.random() * 2}s`)
+  );
 
   // Shuffle array function
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -30,12 +34,13 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
     return shuffled;
   };
 
-  // Generate random proportion between min and max (ensuring they sum to 2)
-  const generateRandomProportions = () => {
-    const min = 0.3;
-    const max = 1.7;
+  // Generate competitive proportions - cells fight for space
+  const generateCompetitiveProportions = () => {
+    // More extreme range for competitive effect
+    const min = 0.2;
+    const max = 1.8;
     
-    // Generate two random values
+    // Generate two random values with more variation
     const val1 = Math.random() * (max - min) + min;
     const val2 = 2 - val1; // Ensure they sum to 2
     
@@ -46,11 +51,11 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
     return [clampedVal1, clampedVal2];
   };
 
-  // Update grid proportions randomly
+  // Update grid proportions competitively - cells fight for space
   useEffect(() => {
     const updateGrid = () => {
-      const [col1, col2] = generateRandomProportions();
-      const [row1, row2] = generateRandomProportions();
+      const [col1, col2] = generateCompetitiveProportions();
+      const [row1, row2] = generateCompetitiveProportions();
       
       setGridStyle({
         gridTemplateColumns: `${col1}fr ${col2}fr`,
@@ -61,9 +66,9 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
     // Initial update
     updateGrid();
 
-    // Random interval between 1.2s and 3.5s
+    // Faster, more aggressive updates - cells compete more frequently
     const scheduleNext = () => {
-      const delay = Math.random() * 2300 + 1200;
+      const delay = Math.random() * 800 + 400; // 0.4s to 1.2s (much faster)
       setTimeout(() => {
         updateGrid();
         scheduleNext();
@@ -109,18 +114,18 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
     scheduleNext();
   }, []);
 
-  // Randomly shuffle cell positions
+  // More aggressive position shuffling - cells compete for positions
   useEffect(() => {
     const shufflePositions = () => {
       setCellOrder(shuffleArray([0, 1, 2, 3]));
     };
 
     // Initial shuffle after a short delay
-    const initialDelay = setTimeout(shufflePositions, 1000);
+    const initialDelay = setTimeout(shufflePositions, 500);
 
-    // Random interval between 2s and 5s for position shuffling
+    // Faster, more frequent shuffling for competitive effect
     const scheduleNext = () => {
-      const delay = Math.random() * 3000 + 2000;
+      const delay = Math.random() * 1500 + 800; // 0.8s to 2.3s (faster competition)
       setTimeout(() => {
         shufflePositions();
         scheduleNext();
@@ -152,14 +157,18 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
           style={{
             gridRow: row,
             gridColumn: col,
-            transition: 'grid-row 0.8s cubic-bezier(0.4, 0, 0.2, 1), grid-column 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+            // Faster, more aggressive transitions for competitive effect
+            transition: 'grid-row 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), grid-column 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+            // Add scale animation to make cells "push" for space
+            animation: `cellFight ${animationDurations[originalIndex]} ease-in-out infinite`,
+            animationDelay: `${originalIndex * 0.2}s`,
           }}
         >
           {child}
         </div>
       );
     }).filter(Boolean);
-  }, [childrenArray, cellOrder]);
+  }, [childrenArray, cellOrder, animationDurations]);
 
   return (
     <AnimationContext.Provider value={{ imageScales, transitionDurations }}>
