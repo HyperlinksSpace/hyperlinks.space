@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "hyperlinks",
-  description: "hyperlinks.space",
+  title: "Hyperlinks.Space",
+  description: "Hyperlinks.Space",
 };
 
 export const viewport: Viewport = {
