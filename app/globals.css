@@ -14,16 +14,16 @@
 :root,
 html,
 body {
+  box-sizing: border-box;
   height: 100%;
-  height: 100dvh; /* Dynamic viewport height for iOS Safari */
-  height: calc(var(--vh, 1vh) * 100); /* Fallback using custom property */
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
   width: 100%;
-  width: 100dvw; /* Dynamic viewport width for iOS Safari */
-  width: calc(var(--vw, 1vw) * 100); /* Fallback using custom property */
+  width: 100dvw;
+  width: calc(var(--vw, 1vw) * 100);
   overflow: hidden;
   margin: 0;
   padding: 0;
-  /* Prevent iOS Safari address bar issues */
   position: fixed;
   top: 0;
   left: 0;
@@ -179,6 +179,86 @@ body {
   width: 100%;
   height: 100%;
   overflow: visible;
+}
+
+/* Fixed overlay logo at top center, exact 100x100 CSS pixels */
+.siteLogoOverlayWrapper {
+  position: fixed;
+  top: 20px;
+  left: 0;
+  width: 100%;
+  z-index: 2147483647; /* Absolutely above everything */
+  display: flex;
+  justify-content: center;
+  pointer-events: none; /* let clicks pass through except on the logo itself */
+}
+
+.siteLogoOverlay {
+  width: 100px;
+  height: 100px;
+  display: block;
+  cursor: pointer;
+  pointer-events: auto; /* clickable */
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.siteLogoOverlay svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Bottom ad overlay: 240px wide, but never more than 77% of viewport width */
+.siteAdOverlayWrapper {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  z-index: 2147483647; /* same above-everything layer as logo */
+  display: flex;
+  justify-content: center;
+  pointer-events: none; /* allow clicks through except on the ad itself */
+}
+
+.siteAdOverlay {
+  width: min(240px, 77vw);
+  display: block;
+  cursor: pointer;
+  pointer-events: auto; /* clickable area */
+}
+
+.siteAdOverlay svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Bouncing stickers overlay: do not block taps except on the stickers */
+.bouncing-stickers-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.bouncing-sticker {
+  position: absolute;
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.bouncing-sticker img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
 }
 
 /* Anchor each SVG toward the grid center (given current order 1..4 => TL, TR, BL, BR) */

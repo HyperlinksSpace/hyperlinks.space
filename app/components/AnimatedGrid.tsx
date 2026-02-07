@@ -17,12 +17,21 @@ export const useAnimation = () => useContext(AnimationContext);
 export default function AnimatedGrid({ children }: { children: React.ReactNode }) {
   const [gridStyle, setGridStyle] = useState<React.CSSProperties>({});
   const [imageScales, setImageScales] = useState<number[]>([1, 1, 1, 1]);
-  const [transitionDurations, setTransitionDurations] = useState<string[]>(['0.4s', '0.4s', '0.4s', '0.4s']);
+  const [transitionDurations, setTransitionDurations] = useState<string[]>([
+    "0.4s",
+    "0.4s",
+    "0.4s",
+    "0.4s",
+  ]);
   const [cellOrder, setCellOrder] = useState<number[]>([0, 1, 2, 3]);
-  // Store animation durations for each cell (generated once)
-  const [animationDurations] = useState<string[]>(() => 
-    [0, 1, 2, 3].map(() => `${2 + Math.random() * 2}s`)
-  );
+  // Animation durations for each cell.
+  // IMPORTANT: start with deterministic values to avoid SSR/CSR hydration mismatch.
+  const [animationDurations, setAnimationDurations] = useState<string[]>([
+    "3s",
+    "3s",
+    "3s",
+    "3s",
+  ]);
 
   // Shuffle array function
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -50,6 +59,14 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
     
     return [clampedVal1, clampedVal2];
   };
+
+  // After mount on the client, randomize animation durations once.
+  // This runs only on the client, so it won't cause hydration mismatch.
+  useEffect(() => {
+    setAnimationDurations(
+      [0, 1, 2, 3].map(() => `${2 + Math.random() * 2}s`)
+    );
+  }, []);
 
   // Update grid proportions competitively - cells fight for space
   useEffect(() => {
@@ -160,7 +177,11 @@ export default function AnimatedGrid({ children }: { children: React.ReactNode }
             // Faster, more aggressive transitions for competitive effect
             transition: 'grid-row 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), grid-column 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
             // Add scale animation to make cells "push" for space
-            animation: `cellFight ${animationDurations[originalIndex]} ease-in-out infinite`,
+            // Use longhand animation properties to avoid React shorthand/longhand conflict warnings
+            animationName: 'cellFight',
+            animationDuration: animationDurations[originalIndex],
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
             animationDelay: `${originalIndex * 0.2}s`,
           }}
         >
