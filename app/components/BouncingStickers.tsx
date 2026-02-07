@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const STICKER_SIZE = 44;
-const SPEED = 1.8; // moderate speed in px per frame
+const SPEED = 3.6; // moderate speed in px per frame
 
 type StickerData = {
   x: number;
@@ -29,6 +29,15 @@ function initSticker(src: string, w: number, h: number): StickerData {
     y: Math.random() * Math.max(0, h - STICKER_SIZE),
     vx: vel.vx,
     vy: vel.vy,
+  };
+}
+
+/** Mirror reflection: reflect velocity across surface normal (like light on a mirror). */
+function reflectVelocity(vx: number, vy: number, nx: number, ny: number): { vx: number; vy: number } {
+  const dot = vx * nx + vy * ny;
+  return {
+    vx: vx - 2 * dot * nx,
+    vy: vy - 2 * dot * ny,
   };
 }
 
@@ -59,36 +68,56 @@ function tickStickers(stickers: StickerData[], w: number, h: number): void {
     }
   }
 
-  // Sticker–sticker: on collision, rebound with a clear change in trajectory (swap velocity components along collision normal)
+  // Sticker–sticker: AABB collision (respects dimensions), mirror reflection on hit
   for (let i = 0; i < stickers.length; i++) {
     for (let j = i + 1; j < stickers.length; j++) {
       const a = stickers[i];
       const b = stickers[j];
-      const ax = a.x + STICKER_SIZE / 2;
-      const ay = a.y + STICKER_SIZE / 2;
-      const bx = b.x + STICKER_SIZE / 2;
-      const by = b.y + STICKER_SIZE / 2;
-      const dx = bx - ax;
-      const dy = by - ay;
-      const distSq = dx * dx + dy * dy;
-      const minDist = STICKER_SIZE;
-      if (distSq >= minDist * minDist || distSq < 1e-10) continue;
-      const dist = Math.sqrt(distSq);
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const vrel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-      if (vrel >= 0) continue; // not approaching
-      // Equal-mass elastic bounce: swap normal components so both change trajectory
-      a.vx -= vrel * nx;
-      a.vy -= vrel * ny;
-      b.vx += vrel * nx;
-      b.vy += vrel * ny;
-      // Separate so they don't stay overlapping
-      const overlap = minDist - dist;
-      a.x -= overlap * nx * 0.5;
-      a.y -= overlap * ny * 0.5;
-      b.x += overlap * nx * 0.5;
-      b.y += overlap * ny * 0.5;
+
+      // AABB overlap - rectangles don't overlay
+      const aLeft = a.x;
+      const aRight = a.x + STICKER_SIZE;
+      const aTop = a.y;
+      const aBottom = a.y + STICKER_SIZE;
+      const bLeft = b.x;
+      const bRight = b.x + STICKER_SIZE;
+      const bTop = b.y;
+      const bBottom = b.y + STICKER_SIZE;
+
+      const overlapX = Math.min(aRight, bRight) - Math.max(aLeft, bLeft);
+      const overlapY = Math.min(aBottom, bBottom) - Math.max(aTop, bTop);
+
+      if (overlapX <= 0 || overlapY <= 0) continue;
+
+      // Determine collision normal from smallest overlap axis (surface we hit)
+      let nx: number;
+      let ny: number;
+      let overlap: number;
+      if (overlapX < overlapY) {
+        nx = a.x + STICKER_SIZE / 2 < b.x + STICKER_SIZE / 2 ? -1 : 1;
+        ny = 0;
+        overlap = overlapX;
+      } else {
+        nx = 0;
+        ny = a.y + STICKER_SIZE / 2 < b.y + STICKER_SIZE / 2 ? 1 : -1;
+        overlap = overlapY;
+      }
+
+      // Mirror reflection: each sticker reflects its velocity across the contact normal (like light on a mirror)
+      const aReflected = reflectVelocity(a.vx, a.vy, nx, ny);
+      const bReflected = reflectVelocity(b.vx, b.vy, -nx, -ny);
+
+      a.vx = aReflected.vx;
+      a.vy = aReflected.vy;
+      b.vx = bReflected.vx;
+      b.vy = bReflected.vy;
+
+      // Separate so they never overlay - push apart along normal by overlap amount
+      const half = overlap / 2;
+      a.x -= nx * half;
+      a.y -= ny * half;
+      b.x += nx * half;
+      b.y += ny * half;
     }
   }
 }
@@ -101,22 +130,16 @@ const STICKER_SOURCES = [
 
 export default function BouncingStickers({ links }: { links: string[] }) {
   const stickersRef = useRef<StickerData[] | null>(null);
-  const [tick, setTick] = useState(0);
+  const [positions, setPositions] = useState<StickerData[] | null>(null);
   const rafRef = useRef<number>(0);
-  const [ready, setReady] = useState(false);
   const linksList = links.length >= 5 ? links.slice(0, 5) : [...links, "/"];
 
-  // Initialize stickers once on mount, then start animation
+  // Initialize stickers and start animation loop
   useEffect(() => {
     const w = typeof window !== "undefined" ? window.innerWidth : 400;
     const h = typeof window !== "undefined" ? window.innerHeight : 400;
-    stickersRef.current = STICKER_SOURCES.map((src) => initSticker(src, w, h));
-    setReady(true);
-  }, []);
-
-  // Single animation loop: runs once when ready, updates ref and forces re-render each frame
-  useEffect(() => {
-    if (!ready) return;
+    const stickers = STICKER_SOURCES.map((src) => initSticker(src, w, h));
+    stickersRef.current = stickers;
 
     function loop() {
       const current = stickersRef.current;
@@ -124,14 +147,13 @@ export default function BouncingStickers({ links }: { links: string[] }) {
       const w = window.innerWidth;
       const h = window.innerHeight;
       tickStickers(current, w, h);
-      setTick((t) => t + 1);
+      setPositions(current.map((s) => ({ ...s })));
       rafRef.current = requestAnimationFrame(loop);
     }
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [ready]);
+  }, []);
 
-  const positions = ready ? stickersRef.current : null;
   if (!positions || positions.length === 0) {
     return null;
   }
