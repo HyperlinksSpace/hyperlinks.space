@@ -223,11 +223,18 @@ body {
   pointer-events: none; /* allow clicks through except on the ad itself */
 }
 
+@keyframes adJerk {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(6px); }
+  75% { transform: translateX(-2px); }
+}
+
 .siteAdOverlay {
   width: min(240px, 77vw);
   display: block;
   cursor: pointer;
   pointer-events: auto; /* clickable area */
+  animation: adJerk 2.5s ease-in-out infinite;
 }
 
 .siteAdOverlay svg {

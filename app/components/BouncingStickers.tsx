@@ -59,7 +59,7 @@ function tickStickers(stickers: StickerData[], w: number, h: number): void {
     }
   }
 
-  // Sticker–sticker bounce: use center distance; when overlapping, reflect velocities and separate
+  // Sticker–sticker: on collision, rebound with a clear change in trajectory (swap velocity components along collision normal)
   for (let i = 0; i < stickers.length; i++) {
     for (let j = i + 1; j < stickers.length; j++) {
       const a = stickers[i];
@@ -70,25 +70,25 @@ function tickStickers(stickers: StickerData[], w: number, h: number): void {
       const by = b.y + STICKER_SIZE / 2;
       const dx = bx - ax;
       const dy = by - ay;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < STICKER_SIZE && dist > 1e-6) {
-        const nx = dx / dist;
-        const ny = dy / dist;
-        // Relative velocity along normal; swap normal components for bounce
-        const vrel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-        if (vrel < 0) {
-          a.vx -= vrel * nx;
-          a.vy -= vrel * ny;
-          b.vx += vrel * nx;
-          b.vy += vrel * ny;
-        }
-        // Separate so they don't overlap
-        const overlap = STICKER_SIZE - dist;
-        a.x -= overlap * nx * 0.5;
-        a.y -= overlap * ny * 0.5;
-        b.x += overlap * nx * 0.5;
-        b.y += overlap * ny * 0.5;
-      }
+      const distSq = dx * dx + dy * dy;
+      const minDist = STICKER_SIZE;
+      if (distSq >= minDist * minDist || distSq < 1e-10) continue;
+      const dist = Math.sqrt(distSq);
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const vrel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+      if (vrel >= 0) continue; // not approaching
+      // Equal-mass elastic bounce: swap normal components so both change trajectory
+      a.vx -= vrel * nx;
+      a.vy -= vrel * ny;
+      b.vx += vrel * nx;
+      b.vy += vrel * ny;
+      // Separate so they don't stay overlapping
+      const overlap = minDist - dist;
+      a.x -= overlap * nx * 0.5;
+      a.y -= overlap * ny * 0.5;
+      b.x += overlap * nx * 0.5;
+      b.y += overlap * ny * 0.5;
     }
   }
 }
