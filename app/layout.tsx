@@ -66,7 +66,7 @@ export default async function RootLayout({
         <div className="siteLogoOverlayWrapper">
           <Link href="/" aria-label="Reload" className="siteLogoOverlay">
             <img
-              src="/hyperlinks/Assets/loga.svg"
+              src="/hyperlinks/Assets/HyperlinksSpace.svg"
               alt=""
               width={100}
               height={100}
