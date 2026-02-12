@@ -17,12 +17,14 @@ import struct
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-try:
-    from PIL import Image, ImageDraw
-except ImportError:
-    print("Install Pillow: pip install Pillow")
-    sys.exit(1)
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
+    from PIL import ImageDraw as PILImageDraw
+
+Image = None
+ImageDraw = None
 
 # Favicon sizes (browsers use 16, 32; some use 48)
 FAVICON_SIZES = [16, 32, 48]
@@ -208,6 +210,21 @@ def main() -> None:
         svg_path = Path(sys.argv[1])
     if len(sys.argv) >= 3:
         output_paths = [Path(p) for p in sys.argv[2:]]
+
+    try:
+        # Import lazily so CI can keep existing favicon
+        # even when Pillow is unavailable.
+        from PIL import Image as _Image, ImageDraw as _ImageDraw
+    except ImportError:
+        if all(path.exists() for path in output_paths):
+            print("Pillow not installed; keeping existing favicon(s).")
+            return
+        print("Install Pillow: pip install Pillow")
+        sys.exit(1)
+
+    global Image, ImageDraw
+    Image = _Image
+    ImageDraw = _ImageDraw
 
     if not svg_path.exists():
         print(f"SVG not found: {svg_path}")
